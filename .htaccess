@@ -1,0 +1,4 @@
+
+AddType application/javascript .ts
+AddType application/javascript .tsx
+    

@@ -59,7 +59,7 @@ export default function App() {
 
   const setupScript = `@echo off
 setlocal enabledelayedexpansion
-title Ollama Fast Agent Server - Persistent Logs
+title Ollama Agent Server - Persistent Mode
 color 0b
 
 echo =======================================================
@@ -77,36 +77,29 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
-echo [1/5] Checking for existing Ollama processes...
-tasklist /FI "IMAGENAME eq ollama.exe" 2>NUL | find /I /N "ollama.exe">NUL
-if "%ERRORLEVEL%"=="0" (
-    echo [INFO] Found running Ollama instance. Closing it to apply new settings...
-    taskkill /F /IM ollama.exe >nul 2>&1
-    timeout /t 2 /nobreak >nul
-    echo [OK] Previous instance closed.
-) else (
-    echo [OK] No existing Ollama process found.
-)
+echo [1/5] Force-closing existing Ollama background instances...
+:: This ensures OLLAMA_HOST and OLLAMA_ORIGINS actually take effect
+taskkill /F /IM ollama.exe >nul 2>&1
+taskkill /F /IM "ollama app.exe" >nul 2>&1
+timeout /t 2 /nobreak >nul
+echo [OK] Background instances cleared.
 echo.
 
 echo [2/5] Setting Environment Variables for Network Access...
 set OLLAMA_ORIGINS=*
 set OLLAMA_HOST=0.0.0.0
 echo [OK] OLLAMA_ORIGINS set to *
-echo [OK] OLLAMA_HOST set to 0.0.0.0 (Listening on all interfaces)
+echo [OK] OLLAMA_HOST set to 0.0.0.0 (Network visible)
 echo.
 
-echo [3/5] Ensuring High-Speed Model (llama3.2:1b) is available...
+echo [3/5] Pulling high-speed model (llama3.2:1b)...
 echo.
 ollama pull llama3.2:1b
-if %errorlevel% neq 0 (
-    echo [WARNING] Could not pull model automatically. 
-)
 echo.
 
-echo [4/5] Finding Local Network IP Addresses...
+echo [4/5] Finding Network Access Points...
 echo -------------------------------------------------------
-echo CONNECT TO ONE OF THESE ADDRESSES:
+echo CONNECT YOUR APP TO ONE OF THESE:
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4 Address"') do (
     set IP=%%a
     set IP=!IP: ^=!
@@ -116,14 +109,15 @@ echo -------------------------------------------------------
 echo.
 
 echo [5/5] Starting Ollama Server...
-echo [LOGS] Server output will appear below. Do not close this window.
+echo [LOGS] Logs will appear below. Do not close this window.
 echo.
 ollama serve
 
 echo.
 color 0c
 echo =======================================================
-echo [CRITICAL] The Ollama server process has stopped.
+echo [CRITICAL] The Ollama server process has exited.
+echo Please check if port 11434 is being used by another app.
 echo =======================================================
 echo.
 pause`;
@@ -383,7 +377,7 @@ pause`;
             setServerStatus(status);
           },
           supportsTools,
-          activePersonality.systemInstruction, // Dynamic personality
+          activePersonality.systemInstruction, 
           abortControllerRef.current.signal
         );
 
@@ -454,25 +448,25 @@ pause`;
   };
 
   const renderMessageContent = (msg: Message, isLast: boolean) => {
-    if (msg.role === 'user') return <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{msg.content}</div>;
+    if (msg.role === 'user') return <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed font-medium">{msg.content}</div>;
     
     if (msg.role === 'tool') {
         const isExpanded = expandedToolMessages.has(msg.id);
         const snippet = msg.content.substring(0, 80).replace(/\n/g, ' ') + (msg.content.length > 80 ? '...' : '');
         
         return (
-            <div className={`bg-slate-950/50 rounded-xl border border-slate-800 text-xs font-mono transition-all duration-300 overflow-hidden ${isExpanded ? 'ring-1 ring-blue-500/20' : ''}`}>
+            <div className={`bg-slate-950/40 rounded-xl border border-slate-800/60 text-[10px] font-mono transition-all duration-300 overflow-hidden ${isExpanded ? 'ring-1 ring-blue-500/20' : ''}`}>
                 <div className="flex items-center justify-between p-2">
-                    <div className="flex items-center gap-2 text-slate-500 uppercase font-bold text-[9px]">
+                    <div className="flex items-center gap-2 text-slate-500 uppercase font-black tracking-widest text-[8px]">
                         <Icons.Check /> {msg.name}
-                        {!isExpanded && <span className="normal-case font-normal text-slate-600 truncate max-w-[180px] md:max-w-[300px] ml-1 opacity-70">— {snippet}</span>}
+                        {!isExpanded && <span className="normal-case font-normal text-slate-600 truncate max-w-[150px] md:max-w-[250px] ml-1 opacity-70">— {snippet}</span>}
                     </div>
                     <button onClick={() => toggleToolExpanded(msg.id)} className={`p-1 hover:bg-slate-800 rounded transition-colors ${isExpanded ? 'text-blue-400' : 'text-slate-500'}`}>
                         {isExpanded ? <Icons.ChevronUp /> : <Icons.Eye />}
                     </button>
                 </div>
                 {isExpanded && (
-                    <div className="px-3 pb-3 pt-1 border-t border-slate-800 text-blue-300 whitespace-pre-wrap overflow-x-auto max-h-[300px] scrollbar-thin">
+                    <div className="px-3 pb-3 pt-1 border-t border-slate-800/60 text-blue-300 whitespace-pre-wrap overflow-x-auto max-h-[250px] scrollbar-thin">
                         {msg.content}
                     </div>
                 )}
@@ -526,7 +520,7 @@ pause`;
                   <p className="text-sm truncate font-medium">{session.title}</p>
                   <p className="text-[10px] text-slate-500">{new Date(session.lastUpdated).toLocaleDateString()}</p>
                 </div>
-                <button onClick={(e) => deleteSession(session.id, e)} className="opacity-0 group-hover:opacity-100 hover:text-red-400 p-1"><Icons.Trash /></button>
+                <button onClick={(e) => deleteSession(session.id, e)} className="opacity-0 group-hover:opacity-100 hover:text-red-400 p-1 transition-opacity"><Icons.Trash /></button>
               </div>
             ))
           )}
@@ -575,7 +569,7 @@ pause`;
               </div>
               <div className="space-y-3">
                 <h2 className="text-4xl font-black text-white tracking-tight">Advanced Local Agent</h2>
-                <p className="text-slate-400 max-w-md mx-auto text-lg leading-relaxed">Local model power with real-time web search and efficient agentic tool loops.</p>
+                <p className="text-slate-400 max-w-md mx-auto text-lg leading-relaxed">High-performance local AI with autonomous tools and personalized personas.</p>
               </div>
               
               {selectedModel && !currentModelObj?.hasTools && (
@@ -583,7 +577,7 @@ pause`;
                   <div className="text-amber-500 shrink-0 mt-1"><Icons.Refresh /></div>
                   <div className="space-y-1">
                     <p className="text-xs font-bold text-amber-500 uppercase tracking-widest">Tool Limitation</p>
-                    <p className="text-xs text-slate-400 leading-relaxed">The selected model (<span className="text-slate-300 font-medium">{selectedModel}</span>) might not support tool calling. It will act as a standard chatbot.</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">The selected model (<span className="text-slate-300 font-medium">{selectedModel}</span>) doesn't natively support tool calling. It will act as a standard chatbot.</p>
                   </div>
                 </div>
               )}
@@ -596,7 +590,7 @@ pause`;
 
               return (
                 <div key={msg.id} className={`flex group/msg ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                  <div className={`max-w-[92%] md:max-w-[85%] rounded-[1.5rem] p-5 shadow-2xl relative transition-all ${msg.role === 'user' ? 'bg-blue-600 text-white font-medium' : 'bg-slate-900/80 border border-slate-800 text-slate-200'}`}>
+                  <div className={`max-w-[92%] md:max-w-[85%] rounded-[1.5rem] p-5 shadow-2xl relative transition-all ${msg.role === 'user' ? 'bg-blue-600 text-white shadow-blue-900/20' : 'bg-slate-900/80 border border-slate-800 text-slate-200 shadow-black/40'}`}>
                     {msg.role !== 'tool' && (
                       <button onClick={() => copyToClipboard(msg.content, msg.id)} className={`absolute -top-3 ${msg.role === 'user' ? '-left-3' : '-right-3'} p-2 rounded-full bg-slate-800 border border-slate-700 text-slate-400 opacity-0 group-hover/msg:opacity-100 hover:text-white transition-all shadow-xl z-20`}>
                         {copiedId === msg.id ? <Icons.Check /> : <Icons.Copy />}
@@ -630,41 +624,42 @@ pause`;
           <div ref={chatEndRef} />
         </div>
 
-        <div className="p-4 md:p-6 border-t border-slate-800 bg-slate-950/50 backdrop-blur-xl">
-          <div className="max-w-4xl mx-auto flex flex-col gap-3">
-            {/* Personality Selector */}
-            <div className="flex items-center gap-2 self-start mb-1 animate-in slide-in-from-left-2 duration-300">
-                <div className="relative group">
-                    <select 
-                        value={activePersonalityId} 
-                        onChange={(e) => setActivePersonalityId(e.target.value)}
-                        className="appearance-none bg-slate-900/80 border border-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-[11px] font-bold text-slate-400 hover:text-blue-400 transition-all cursor-pointer outline-none focus:ring-1 focus:ring-blue-500/30"
-                    >
-                        {personalities.map(p => (
-                            <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
-                        ))}
-                    </select>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                        <Icons.ChevronDown />
-                    </div>
-                </div>
-                <button 
-                    onClick={() => setEditingPersonality({ ...activePersonality })}
-                    className="p-1.5 text-slate-600 hover:text-blue-400 transition-colors rounded-md hover:bg-slate-900/50"
-                    title="Edit Personality"
-                >
-                    <Icons.Settings />
-                </button>
-            </div>
+        <div className="p-4 md:p-6 border-t border-slate-800 bg-slate-950/50 backdrop-blur-xl relative">
+          
+          {/* PERSONALITY DROPDOWN (Bottom Left of the chat main area) */}
+          <div className="absolute bottom-full left-6 mb-4 flex items-center gap-2 animate-in slide-in-from-left-4 duration-500">
+              <div className="relative">
+                  <select 
+                      value={activePersonalityId} 
+                      onChange={(e) => setActivePersonalityId(e.target.value)}
+                      className="appearance-none bg-slate-900/90 border border-slate-700/50 hover:border-blue-500/50 rounded-xl pl-3 pr-9 py-2 text-[11px] font-bold text-slate-300 hover:text-white transition-all cursor-pointer outline-none focus:ring-4 focus:ring-blue-500/10 shadow-xl backdrop-blur-md"
+                  >
+                      {personalities.map(p => (
+                          <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
+                      ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                      <Icons.ChevronDown />
+                  </div>
+              </div>
+              <button 
+                  onClick={() => setEditingPersonality({ ...activePersonality })}
+                  className="p-2.5 bg-slate-900/90 border border-slate-700/50 text-slate-500 hover:text-blue-400 transition-all rounded-xl hover:bg-slate-800 shadow-xl backdrop-blur-md active:scale-95"
+                  title="Configure Persona"
+              >
+                  <Icons.Settings />
+              </button>
+          </div>
 
+          <div className="max-w-4xl mx-auto">
             <div className="flex gap-3 items-end">
               <div className="flex-1 relative group">
                 <textarea 
                   value={input} 
                   onChange={(e) => setInput(e.target.value)} 
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }} 
-                  placeholder={`Chat with ${activePersonality.name} Agent...`} 
-                  className="w-full bg-slate-900/80 border border-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-5 py-4 text-sm resize-none h-[64px] transition-all outline-none scrollbar-none" 
+                  placeholder={`Send a message to ${activePersonality.name}...`} 
+                  className="w-full bg-slate-900/80 border border-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-5 py-4 text-sm resize-none h-[64px] transition-all outline-none scrollbar-none shadow-inner" 
                   disabled={isTyping}
                 />
                 <div className="absolute right-3 bottom-3 flex gap-2">
@@ -690,29 +685,33 @@ pause`;
                 </button>
               )}
             </div>
-            <p className="text-[9px] text-slate-600 text-center mt-3 font-medium uppercase tracking-widest">Local Server: {ollamaUrl} • Mode: {activePersonality.name}</p>
+            <p className="text-[9px] text-slate-600 text-center mt-3 font-medium uppercase tracking-[0.3em]">Local: {ollamaUrl} • Persona: {activePersonality.name}</p>
           </div>
         </div>
 
         {/* Personality Editor Modal */}
         {editingPersonality && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
-               <div className="px-8 py-6 border-b border-slate-800 flex items-center justify-between">
-                <h3 className="font-black text-xl tracking-tight">Edit Personality: {editingPersonality.name}</h3>
+            <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-lg shadow-[0_0_100px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-200">
+               <div className="px-10 py-8 border-b border-slate-800 flex items-center justify-between">
+                <div>
+                  <h3 className="font-black text-2xl tracking-tight">Configure Persona</h3>
+                  <p className="text-slate-500 text-xs mt-1">Adjust how {editingPersonality.name} {editingPersonality.emoji} responds.</p>
+                </div>
                 <button onClick={() => setEditingPersonality(null)} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500 hover:text-white"><Icons.X /></button>
               </div>
-              <div className="p-8 space-y-6">
-                <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">System Instruction</label>
+              <div className="p-10 space-y-6">
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">System Instruction</label>
                     <textarea 
                         value={editingPersonality.systemInstruction} 
                         onChange={(e) => setEditingPersonality({...editingPersonality, systemInstruction: e.target.value})}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none shadow-inner transition-all h-40 resize-none font-sans leading-relaxed" 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-sm focus:border-blue-500 outline-none shadow-inner transition-all h-48 resize-none font-sans leading-relaxed" 
+                        placeholder="Tell the AI how to behave..."
                     />
-                    <p className="text-[10px] text-slate-600 italic mt-1">This prompt shapes how the model behaves and speaks.</p>
+                    <p className="text-[10px] text-slate-600 italic leading-relaxed">Changes are saved locally on this device. This instruction is sent with every message to maintain context.</p>
                 </div>
-                <button onClick={saveEditedPersonality} className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-black py-4 rounded-xl transition-all shadow-lg active:scale-95">Save Changes</button>
+                <button onClick={saveEditedPersonality} className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-black py-5 rounded-2xl transition-all shadow-lg active:scale-95">Update Persona</button>
               </div>
             </div>
           </div>
@@ -720,32 +719,32 @@ pause`;
 
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] w-full max-w-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
-              <div className="px-8 py-6 border-b border-slate-800 flex items-center justify-between">
-                <h3 className="font-black text-xl tracking-tight">Agent Config</h3>
+            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+              <div className="px-10 py-8 border-b border-slate-800 flex items-center justify-between">
+                <h3 className="font-black text-2xl tracking-tight">Server Config</h3>
                 <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500 hover:text-white"><Icons.X /></button>
               </div>
-              <div className="p-8 space-y-6">
+              <div className="p-10 space-y-6">
                 <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Server URL</label>
-                    <input type="text" value={ollamaUrl} onChange={(e) => setOllamaUrl(e.target.value)} placeholder="http://localhost:11434" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-5 py-3 text-sm focus:border-blue-500 outline-none shadow-inner transition-all" />
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Ollama API URL</label>
+                    <input type="text" value={ollamaUrl} onChange={(e) => setOllamaUrl(e.target.value)} placeholder="http://192.168.x.x:11434" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-5 py-4 text-sm focus:border-blue-500 outline-none shadow-inner transition-all" />
                 </div>
                 
-                <div className="bg-slate-950/50 rounded-2xl border border-slate-800 p-5 space-y-4">
+                <div className="bg-blue-600/5 rounded-2xl border border-blue-500/20 p-6 space-y-4">
                   <h4 className="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                    <Icons.Sparkles /> Speed Optimization Tips
+                    <Icons.Sparkles /> Troubleshooting Deployment
                   </h4>
-                  <div className="text-xs text-slate-400 space-y-2 leading-relaxed">
-                    <p>To reach <span className="text-blue-300">200ms-500ms</span> latency:</p>
+                  <div className="text-[11px] text-slate-400 space-y-2 leading-relaxed">
+                    <p>If you see a <span className="text-red-400 font-bold">MIME type</span> error on your domain:</p>
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Use <span className="text-slate-200">llama3.2:1b</span> (small & ultra-fast)</li>
-                      <li>Ensure your GPU is offloading layers (check Task Manager for CUDA/GPU usage)</li>
-                      <li>Use the <span className="text-slate-200">Server Setup Helper</span> to set OLLAMA_HOST properly</li>
+                      <li>Ensure <span className="text-slate-200">.htaccess</span> or <span className="text-slate-200">_headers</span> are uploaded.</li>
+                      <li>These files tell your server to treat <span className="text-blue-300">.tsx</span> as JavaScript.</li>
+                      <li>If on Cloudflare, check your "Transform Rules" to set Content-Type for .tsx files.</li>
                     </ul>
                   </div>
                 </div>
 
-                <button onClick={() => { checkConnection(); setShowSettings(false); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-black py-4 rounded-xl transition-all shadow-lg active:scale-95">Apply Settings</button>
+                <button onClick={() => { checkConnection(); setShowSettings(false); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-black py-4 rounded-xl transition-all shadow-lg active:scale-95">Save & Reconnect</button>
               </div>
             </div>
           </div>
@@ -757,39 +756,37 @@ pause`;
               <div className="px-10 py-8 border-b border-slate-800 flex items-center justify-between">
                 <div>
                    <h3 className="font-black text-2xl tracking-tight">Server Setup Helper</h3>
-                   <p className="text-slate-500 text-sm">One-click configuration for fast, remote agents.</p>
+                   <p className="text-slate-500 text-sm mt-1">Configure your local machine for remote agent access.</p>
                 </div>
                 <button onClick={() => setShowSetupGuide(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500 hover:text-white"><Icons.X /></button>
               </div>
               <div className="p-10 space-y-8">
                 <div className="space-y-4">
                   <p className="text-slate-300 leading-relaxed text-sm">
-                    This script automatically sets up your Windows machine as an Ollama agent server. 
-                    It enables remote connections and pulls the fastest compatible model (<span className="text-blue-400">llama3.2:1b</span>).
+                    This script ensures Ollama is listening for remote connections from this app and pulls the fastest compatible model (<span className="text-blue-400 font-bold">llama3.2:1b</span>).
                   </p>
                   
-                  <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
-                    <div className="bg-slate-900/50 px-4 py-2 flex justify-between items-center border-b border-slate-800">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">start_ollama_agent.bat</span>
-                      <button onClick={downloadSetupScript} className="text-[10px] font-bold text-blue-400 hover:text-blue-300">Download Script</button>
+                  <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-inner">
+                    <div className="bg-slate-900/50 px-4 py-2.5 flex justify-between items-center border-b border-slate-800">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">start_ollama_agent.bat</span>
+                      <button onClick={downloadSetupScript} className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"><Icons.Copy /> Download Script</button>
                     </div>
-                    <pre className="p-5 text-[11px] font-mono text-slate-400 overflow-x-auto whitespace-pre">
+                    <pre className="p-6 text-[11px] font-mono text-slate-400 overflow-x-auto whitespace-pre leading-relaxed">
                       {setupScript}
                     </pre>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="font-bold text-sm uppercase tracking-widest text-slate-200">How to use:</h4>
-                  <ol className="list-decimal list-inside text-sm text-slate-400 space-y-3 leading-relaxed">
-                    <li>Download the <span className="text-blue-400 font-bold">.bat</span> file above.</li>
-                    <li>Move it to the computer you want to use as the <span className="text-white">Server</span>.</li>
-                    <li>Double-click to run it. Note the <span className="text-green-400">IP address</span> it shows.</li>
-                    <li>Enter that IP in the <span className="text-white">Server Config</span> on this device.</li>
-                  </ol>
+                  <h4 className="font-bold text-xs uppercase tracking-widest text-slate-400">Next Steps:</h4>
+                  <ul className="text-sm text-slate-400 space-y-3 leading-relaxed">
+                    <li className="flex gap-3"><span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center text-[10px] font-bold border border-blue-500/20">1</span> Run the script on the PC with Ollama installed.</li>
+                    <li className="flex gap-3"><span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center text-[10px] font-bold border border-blue-500/20">2</span> Copy the IP address shown in the green log.</li>
+                    <li className="flex gap-3"><span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center text-[10px] font-bold border border-blue-500/20">3</span> Paste it into the <span className="text-white">Server Config</span> on this device.</li>
+                  </ul>
                 </div>
 
-                <button onClick={() => setShowSetupGuide(false)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg active:scale-95">I've set it up!</button>
+                <button onClick={() => setShowSetupGuide(false)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-2xl transition-all shadow-lg active:scale-95 uppercase tracking-widest text-xs">Got it!</button>
               </div>
             </div>
           </div>

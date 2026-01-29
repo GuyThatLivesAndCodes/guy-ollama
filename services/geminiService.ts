@@ -1,9 +1,11 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+// Strictly adhering to naming and initialization rules
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 export const optimizePrompt = async (prompt: string): Promise<string> => {
+  // Graceful fallback if API_KEY is missing in a specific environment
   if (!process.env.API_KEY) return prompt;
 
   try {
@@ -16,7 +18,7 @@ export const optimizePrompt = async (prompt: string): Promise<string> => {
         temperature: 0.7,
       }
     });
-    return response.text?.trim() || prompt;
+    return response.text.trim() || prompt;
   } catch (e) {
     console.error('Gemini optimization failed', e);
     return prompt;
@@ -36,7 +38,7 @@ export const generateTitle = async (messages: { role: string, content: string }[
         temperature: 0.5,
       }
     });
-    return response.text?.trim() || 'Chat Session';
+    return response.text.trim() || 'Chat Session';
   } catch (e) {
     return 'Chat Session';
   }
@@ -47,7 +49,7 @@ export const searchWeb = async (query: string): Promise<string> => {
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-3-pro-preview", // Use Pro for higher quality research
             contents: `Research the following query and provide a factual, concise summary of the results: "${query}"`,
             config: {
                 tools: [{ googleSearch: {} }]
