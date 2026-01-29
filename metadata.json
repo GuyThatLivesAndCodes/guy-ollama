@@ -1,0 +1,5 @@
+{
+  "name": "Ollama Connect Pro",
+  "description": "A high-performance web interface for local Ollama instances, featuring Gemini-powered prompt enhancement and seamless local network AI interaction.",
+  "requestFramePermissions": []
+}
