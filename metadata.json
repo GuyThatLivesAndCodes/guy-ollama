@@ -1,5 +1,7 @@
 {
-  "name": "Ollama Connect Pro",
-  "description": "A high-performance web interface for local Ollama instances, featuring Gemini-powered prompt enhancement and seamless local network AI interaction.",
-  "requestFramePermissions": []
+  "name": "Ollama Remote Hub",
+  "description": "A professional-grade interface for interacting with local Ollama instances securely via Cloudflare Tunnels, featuring integrated Gemini AI assistance.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

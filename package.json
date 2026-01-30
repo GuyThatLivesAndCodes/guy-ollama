@@ -1,5 +1,5 @@
 {
-  "name": "ollama-connect-pro",
+  "name": "ollama-remote-hub",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@google/genai": "^1.38.0",
-    "react-dom": "^19.2.4",
+    "lucide-react": "^0.563.0",
     "react": "^19.2.4",
-    "marked": "^15.0.0"
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

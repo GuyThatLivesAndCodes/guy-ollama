@@ -1,56 +1,32 @@
 
 export interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'system' | 'tool';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
-  tool_calls?: ToolCall[];
-  tool_call_id?: string;
-  name?: string;
-}
-
-export interface ToolCall {
-  id: string;
-  type: 'function';
-  function: {
-    name: string;
-    arguments: string;
-  };
-}
-
-export interface Personality {
-  id: string;
-  name: string;
-  systemInstruction: string;
-  emoji: string;
+  model?: string;
 }
 
 export interface OllamaModel {
   name: string;
-  modified_at: string;
+  model: string;
   size: number;
-  digest: string;
   details: {
     format: string;
     family: string;
-    families: string[];
     parameter_size: string;
     quantization_level: string;
   };
-  hasTools?: boolean;
 }
 
-export interface ChatSession {
-  id: string;
-  title: string;
-  messages: Message[];
-  model: string;
-  lastUpdated: number;
+export interface Settings {
+  endpoint: string;
+  selectedModel: string;
+  systemPrompt: string;
 }
 
 export enum ConnectionStatus {
-  IDLE = 'IDLE',
-  CONNECTING = 'CONNECTING',
   CONNECTED = 'CONNECTED',
+  DISCONNECTED = 'DISCONNECTED',
+  CONNECTING = 'CONNECTING',
   ERROR = 'ERROR'
 }
